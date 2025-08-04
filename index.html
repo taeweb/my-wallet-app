@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>แอปกระเป๋าตังค์รายวัน</title>
+<style>
+  body {
+    font-family: "Kanit", sans-serif;
+    background: #f0f4f7;
+    margin: 0; padding: 0;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  #container {
+    background: white;
+    margin: 30px;
+    padding: 30px 40px;
+    border-radius: 12px;
+    box-shadow: 0 0 20px #ccc;
+    max-width: 420px;
+    width: 100%;
+  }
+  h2, h3 {
+    color: #2c3e50;
+    margin-bottom: 12px;
+  }
+  input[type="text"],
+  input[type="password"],
+  input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    margin-bottom: 15px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    box-sizing: border-box;
+    transition: border-color 0.3s;
+  }
+  input[type="text"]:focus,
+  input[type="password"]:focus,
+  input[type="number"]:focus {
+    border-color: #2980b9;
+    outline: none;
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    width: 100%;
+    margin-bottom: 10px;
+    transition: background-color 0.3s;
+  }
+  button:hover {
+    opacity: 0.9;
+  }
+  .btn-login {
+    background-color: #27ae60;
+  }
+  .btn-register {
+    background-color: #2980b9;
+  }
+  .btn-add-income {
+    background-color: #ffffff;
+    width: 48%;
+  }
+  .btn-add-expense {
+    background-color: #c0392b;
+    width: 48%;
+  }
+  .btn-set-goal {
+    background-color: #f39c12;
+  }
+  .btn-set-salary {
+    background-color: #d35400;
+  }
+  .btn-logout {
+    background-color: #7f8c8d;
+  }
+  .btn-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+  #message {
+    font-weight: 700;
+    margin-bottom: 15px;
+  }
+  .summary {
+    font-weight: 600;
+    margin-top: 15px;
+  }
+  .green {
+    color: #27ae60;
+  }
+  .red {
+    color: #c0392b;
+  }
+  .hidden {
+    display: none;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <!-- หน้า Login / Register -->
+  <section id="auth-section">
+    <h2>เข้าสู่ระบบ</h2>
+    <input type="text" id="login-username" placeholder="ชื่อผู้ใช้" />
+    <input type="password" id="login-password" placeholder="รหัสผ่าน" />
+    <button class="btn-login" id="login-btn">เข้าสู่ระบบ</button>
+    <hr />
+    <h3>สมัครสมาชิก</h3>
+    <input type="text" id="reg-username" placeholder="ชื่อผู้ใช้ใหม่" />
+    <input type="password" id="reg-password" placeholder="รหัสผ่านใหม่" />
+    <button class="btn-register" id="register-btn">สมัครสมาชิก</button>
+  </section>
+
+  <!-- หน้าแอปหลัก -->
+  <section id="app-section" class="hidden">
+    <h2>สวัสดี, <span id="display-username"></span></h2>
+
+    <h3>ยอดเงินคงเหลือ: <span id="balance">0</span> บาท</h3>
+
+    <h3>เพิ่มรายการ</h3>
+    <input type="text" id="desc" placeholder="รายละเอียด" />
+    <input type="number" id="amount" placeholder="จำนวนเงิน" min="1" />
+    <div class="btn-row">
+      <button class="btn-add-income" id="add-income-btn"></button>
+      <button class="btn-add-expense" id="add-expense-btn">เพิ่มรายจ่าย</button>
+    </div>
+
+    <h3>🎯 ตั้งเป้าหมายเงินเก็บ/เดือน</h3>
+    <input type="number" id="goal-input" placeholder="ตั้งเป้าหมายเงินเก็บ (บาท)" min="0" />
+    <button class="btn-set-goal" id="set-goal-btn">ตั้งเป้าหมาย</button>
+
+    <h3>💰 เงินเดือน</h3>
+    <input type="number" id="salary" placeholder="ใส่เงินเดือน (บาท)" min="0" />
+    <button class="btn-set-salary" id="set-salary-btn">ตั้งเงินเดือน</button>
+    <p id="daily-budget-msg"></p>
+
+    <h3>📊 สรุปประจำวัน</h3>
+    <p id="summary" class="summary"></p>
+    <p id="goal-status" class="summary"></p>
+
+    <button class="btn-logout" id="logout-btn">ออกจากระบบ</button>
+
+    <p id="message"></p>
+  </section>
+</div>
+
+<script>
+  // เก็บสถานะผู้ใช้ปัจจุบัน
+  let currentUser = null;
+
+  // โหลดข้อมูลผู้ใช้จาก localStorage
+  function loadUsers() {
+    let users = localStorage.getItem("users");
+    return users ? JSON.parse(users) : {};
+  }
+  // บันทึกข้อมูลผู้ใช้ลง localStorage
+  function saveUsers(users) {
+    localStorage.setItem("users", JSON.stringify(users));
+  }
+  // โหลดรายการของผู้ใช้
+  function loadTransactions(user) {
+    let data = localStorage.getItem("trans_" + user);
+    return data ? JSON.parse(data) : [];
+  }
+  // บันทึกรายการของผู้ใช้
+  function saveTransactions(user, trans) {
+    localStorage.setItem("trans_" + user, JSON.stringify(trans));
+  }
+  // โหลดเป้าหมายเงินเก็บ
+  function loadGoal(user) {
+    let goals = localStorage.getItem("goals");
+    if (!goals) return 0;
+    let obj = JSON.parse(goals);
+    return obj[user] || 0;
+  }
+  // บันทึกเป้าหมายเงินเก็บ
+  function saveGoal(user, val) {
+    let goals = localStorage.getItem("goals");
+    let obj = goals ? JSON.parse(goals) : {};
+    obj[user] = val;
+    localStorage.setItem("goals", JSON.stringify(obj));
+  }
+  // โหลดเงินเดือน
+  function loadSalary(user) {
+    let val = localStorage.getItem("salary_" + user);
+    return val ? Number(val) : 0;
+  }
+  // บันทึกเงินเดือน
+  function saveSalary(user, val) {
+    localStorage.setItem("salary_" + user, val);
+  }
+
+  // ฟังก์ชันคำนวณยอดคงเหลือ
+  function getBalance(user) {
+    let trans = loadTransactions(user);
+    let total = 0;
+    trans.forEach(t => {
+      if (t.type === "income") total += t.amount;
+      else total -= t.amount;
+    });
+    return total;
+  }
+
+  // ฟังก์ชันคำนวณรายรับ-รายจ่ายวันนี้
+  function getDailySummary(user) {
+    let trans = loadTransactions(user);
+    let today = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
+    let income = 0, expense = 0;
+    trans.forEach(t => {
+      if (t.date === today) {
+        if (t.type === "income") income += t.amount;
+        else expense += t.amount;
+      }
+    });
+    return { income, expense, net: income - expense };
+  }
+
+  // ฟังก์ชันแสดงข้อมูลในแอป
+  function showApp() {
+    document.getElementById("auth-section").classList.add("hidden");
+    document.getElementById("app-section").classList.remove("hidden");
+
+    document.getElementById("display-username").textContent = currentUser;
+
+    // แสดงยอดคงเหลือ
+    document.getElementById("balance").textContent = getBalance(currentUser);
+
+    // แสดงเป้าหมาย
+    const goalVal = loadGoal(currentUser);
+    document.getElementById("goal-input").value = goalVal;
+
+    // แสดงเงินเดือน และข้อความ
+    const salaryVal = loadSalary(currentUser);
+    document.getElementById("salary").value = salaryVal;
+    updateDailyBudgetMsg(salaryVal);
+
+    refreshSummary();
+  }
+
+  // อัปเดตข้อความงบใช้ต่อวัน
+  function updateDailyBudgetMsg(salary) {
+    const msgEl = document.getElementById("daily-budget-msg");
+    if (!salary || salary <= 0) {
+      msgEl.textContent = "";
+      return;
+    }
+    const daily = (salary / 30).toFixed(2);
+    msgEl.textContent = `💡 คุณควรใช้เงินไม่เกินวันละ ${daily} บาท เพื่อให้เงินเดือนพอใช้ทั้งเดือน`;
+  }
+
+  // ฟังก์ชันรีเฟรชสรุปประจำวัน
+  function refreshSummary() {
+    const { income, expense, net } = getDailySummary(currentUser);
+    const goal = loadGoal(currentUser);
+    const summaryEl = document.getElementById("summary");
+    const statusEl = document.getElementById("goal-status");
+
+    summaryEl.textContent = `รายรับวันนี้: ${income} | รายจ่ายวันนี้: ${expense} | เหลือใช้: ${net}`;
+
+    if (net >= goal && goal > 0) {
+      statusEl.textContent = "🎉 ถึงเป้าหมายเงินเก็บรายเดือนแล้ว!";
+      statusEl.className = "summary green";
+    } else if (goal > 0) {
+      statusEl.textContent = "⚠️ ยังไม่ถึงเป้าหมายเงินเก็บรายเดือน";
+      statusEl.className = "summary red";
+    } else {
+      statusEl.textContent = "";
+    }
+  }
+
+  // ฟังก์ชันแสดงข้อความแจ้งเตือน (alert แทน)
+  function showMessage(msg, isError = false) {
+    alert(msg);
+  }
+
+  // ลงทะเบียนผู้ใช้ใหม่
+  document.getElementById("register-btn").onclick = function () {
+    const u = document.getElementById("reg-username").value.trim();
+    const p = document.getElementById("reg-password").value.trim();
+    if (!u || !p) {
+      showMessage("กรุณากรอกชื่อผู้ใช้และรหัสผ่าน");
+      return;
+    }
+    let users = loadUsers();
+    if (users[u]) {
+      showMessage("มีชื่อผู้ใช้นี้แล้ว");
+      return;
+    }
+    users[u] = p;
+    saveUsers(users);
+    // สร้างรายการเปล่าให้ผู้ใช้
+    saveTransactions(u, []);
+    saveGoal(u, 0);
+    saveSalary(u, 0);
+    showMessage("สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ");
+    document.getElementById("reg-username").value = "";
+    document.getElementById("reg-password").value = "";
+  };
+
+  // เข้าสู่ระบบ
+  document.getElementById("login-btn").onclick = function () {
+    const u = document.getElementById("login-username").value.trim();
+    const p = document.getElementById("login-password").value.trim();
+    if (!u || !p) {
+      showMessage("กรุณากรอกชื่อผู้ใช้และรหัสผ่าน");
+      return;
+    }
+    const users = loadUsers();
+    if (!users[u] || users[u] !== p) {
+      showMessage("ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง");
+      return;
+    }
+    currentUser = u;
+    // ล้างข้อมูลกรอก
+    document.getElementById("login-username").value = "";
+    document.getElementById("login-password").value = "";
+    showApp();
+  };
+
+  // เพิ่มรายการรายรับ
+  document.getElementById("add-income-btn").onclick = function () {
+    addTransaction("income");
+  };
+  // เพิ่มรายการรายจ่าย
+  document.getElementById("add-expense-btn").onclick = function () {
+    addTransaction("expense");
+  };
+
+  function addTransaction(type) {
+    const desc = document.getElementById("desc").value.trim();
+    const amountStr = document.getElementById("amount").value.trim();
+    if (!desc) {
+      showMessage("กรุณากรอกรายละเอียด");
+      return;
+    }
+    if (!amountStr || isNaN(amountStr) || Number(amountStr) <= 0) {
+      showMessage("กรุณากรอกจำนวนเงินที่ถูกต้อง (> 0)");
+      return;
+    }
+    const amount = Number(amountStr);
+
+    let trans = loadTransactions(currentUser);
+    const today = new Date().toISOString().slice(0, 10);
+    trans.push({ date: today, type: type, description: desc, amount: amount });
+    saveTransactions(currentUser, trans);
+
+    // รีเซ็ตฟิลด์
+    document.getElementById("desc").value = "";
+    document.getElementById("amount").value = "";
+
+    // อัปเดตยอดเงินคงเหลือและสรุป
+    document.getElementById("balance").textContent = getBalance(currentUser);
+    refreshSummary();
+  }
+
+  // ตั้งเป้าหมายเงินเก็บ
+  document.getElementById("set-goal-btn").onclick = function () {
+    const goalStr = document.getElementById("goal-input").value.trim();
+    if (!goalStr || isNaN(goalStr) || Number(goalStr) < 0) {
+      showMessage("กรุณากรอกเป้าหมายเงินเก็บที่ถูกต้อง (>=0)");
+      return;
+    }
+    const goalVal = Number(goalStr);
+    saveGoal(currentUser, goalVal);
+    showMessage("ตั้งเป้าหมายเงินเก็บเรียบร้อย");
+    refreshSummary();
+  };
+
+  // ตั้งเงินเดือน
+  document.getElementById("set-salary-btn").onclick = function () {
+    const salaryStr = document.getElementById("salary").value.trim();
+    if (!salaryStr || isNaN(salaryStr) || Number(salaryStr) <= 0) {
+      showMessage("กรุณากรอกเงินเดือนที่ถูกต้อง (> 0)");
+      return;
+    }
+    const salaryVal = Number(salaryStr);
+    saveSalary(currentUser, salaryVal);
+    updateDailyBudgetMsg(salaryVal);
+    showMessage("ตั้งเงินเดือนเรียบร้อย");
+  };
+
+  // ออกจากระบบ
+  document.getElementById("logout-btn").onclick = function () {
+    currentUser = null;
+    document.getElementById("app-section").classList.add("hidden");
+    document.getElementById("auth-section").classList.remove("hidden");
+  };
+</script>
+</body>
+</html>
